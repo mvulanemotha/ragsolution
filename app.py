@@ -106,9 +106,17 @@ def ask_pdf():
         print(f"📥 PDF query: {query}")
         start = time.time()
         result = retrieval_chain.invoke({"input": query})
-        print(f"✅ Done in {time.time() - start:.2f} seconds")
-        print(result)
-        return jsonify({"answer": result})
+        elapsed = time.time() - start
+        
+        # Safe printing (avoid serialization issues)
+        print(f"✅ Done in {elapsed:.2f} seconds")
+        print(f"Answer: {result.get('answer')}")
+        print(f"Context documents: {len(result.get('context', []))}")
+        
+        # Return only the serializable answer
+        answer_text = result.get("answer", "No answer found.")
+        return jsonify({"answer": answer_text})
+    
     except Exception as e:
         print(f"❌ ask_pdf error: {e}")
         return jsonify({"error": str(e)}), 500
