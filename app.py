@@ -19,26 +19,25 @@ DB_FOLDER = "db"
 os.makedirs(PDF_FOLDER, exist_ok=True)
 os.makedirs(DB_FOLDER, exist_ok=True)
 
-#checking if ollama is connecting
-def wait_for_ollama_ready(url="http://ollama:11434" , timeout=5):
+# Checking if Ollama is connecting
+def wait_for_ollama_ready(url="http://ollama:11434", timeout=5):
     for i in range(timeout):
         try:
             res = requests.get(url + "/")
             if res.status_code == 200:
                 print("✅ Ollama is ready!")
-                return True    
-
+                return True
         except:
             pass
         print(f"⏳ Waiting for Ollama... ({i+1}/{timeout})")
         time.sleep(1)
-    raise RuntimeError("Ollama not available after timeout.")     
+    raise RuntimeError("Ollama not available after timeout.")
 
 wait_for_ollama_ready()
 
 # LLM & Embeddings
-#cached_llm = Ollama(model="gemma:2b" , base_url="http://ollama:11434")  # Use lighter model for speed
-cached_llm = Ollama(model="llama3:8b" , base_url="http://ollama:11434")
+#cached_llm = Ollama(model="llama3:8b", base_url="http://ollama:11434")
+cached_llm = Ollama(model="gemma:2b", base_url="http://ollama:11434")
 embedding = FastEmbedEmbeddings()
 
 # Text splitter
@@ -60,7 +59,7 @@ raw_prompt = PromptTemplate.from_template(
     """
 )
 
-# === Persistent Vector Store & Retrieval Chain ===
+# Load or create vector store on startup
 print("🔄 Loading vector store from disk...")
 vector_store = Chroma(persist_directory=DB_FOLDER, embedding_function=embedding)
 
@@ -91,8 +90,11 @@ def upload_pdf():
         chunks = text_splitter.split_documents(docs)
         print(f"📚 Text chunks: {len(chunks)}")
 
-        Chroma.from_documents(documents=chunks, embedding=embedding, persist_directory=DB_FOLDER)
-        print(f"✅ Document embedded and stored.")
+        # Append new documents to the existing vector store
+        global vector_store
+        vector_store.add_documents(chunks)
+        vector_store.persist()
+        print(f"✅ Document embedded and stored (appended).")
 
         return jsonify({
             "status": "Successfully uploaded",
@@ -127,12 +129,10 @@ def ask_pdf():
         result = retrieval_chain.invoke({"input": query})
         elapsed = time.time() - start
         
-        # Safe printing (avoid serialization issues)
         print(f"✅ Done in {elapsed:.2f} seconds")
         print(f"Answer: {result.get('answer')}")
         print(f"Context documents: {len(result.get('context', []))}")
-        
-        # Return only the serializable answer
+
         answer_text = result.get("answer", "No answer found.")
         return jsonify({"answer": answer_text})
     
