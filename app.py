@@ -2,8 +2,8 @@ from flask import Flask, request, jsonify
 from langchain_community.llms import Ollama
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-#from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
-from langchain_community.embeddings.ollama import OllamaEmbeddings
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
+#from langchain_community.embeddings.ollama import OllamaEmbeddings
 from langchain_community.document_loaders import PDFPlumberLoader
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
@@ -38,9 +38,9 @@ wait_for_ollama_ready()
 
 # LLM & Embeddings
 #cached_llm = Ollama(model="llama3:8b", base_url="http://ollama:11434")
-cached_llm = Ollama(model="gemma:2b", base_url="http://ollama:11434")
-embedding = OllamaEmbeddings(model="mxbai-embed-large" , base_url="http://ollama:11434")
-#embedding = FastEmbedEmbeddings()
+cached_llm = Ollama(model="mistral", base_url="http://ollama:11434")
+#embedding = OllamaEmbeddings(model="mxbai-embed-large" , base_url="http://ollama:11434")
+embedding = FastEmbedEmbeddings()
 
 # Text splitter
 text_splitter = RecursiveCharacterTextSplitter(
