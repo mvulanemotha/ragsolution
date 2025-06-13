@@ -9,6 +9,7 @@ from langchain.chains import create_retrieval_chain
 from langchain.prompts import PromptTemplate
 import os
 import time
+import requests
 
 app = Flask(__name__)
 
@@ -18,8 +19,25 @@ DB_FOLDER = "db"
 os.makedirs(PDF_FOLDER, exist_ok=True)
 os.makedirs(DB_FOLDER, exist_ok=True)
 
+#checking if ollama is connecting
+def wait_for_ollama_ready(url="http://ollama:11434" , timeout=5):
+    for i in range(timeout):
+        try:
+            res = requests.get(url + "/")
+            if res.status_code == 200:
+                print("✅ Ollama is ready!")
+                return True    
+
+        except:
+            pass
+        print(f"⏳ Waiting for Ollama... ({i+1}/{timeout})")
+        time.sleep(1)
+    raise RuntimeError("Ollama not available after timeout.")     
+
+wait_for_ollama_ready()
+
 # LLM & Embeddings
-cached_llm = Ollama(model="gemma:2b")  # Use lighter model for speed
+cached_llm = Ollama(model="gemma:2b" , base_url="http://ollama:11434")  # Use lighter model for speed
 embedding = FastEmbedEmbeddings()
 
 # Text splitter
@@ -48,7 +66,7 @@ vector_store = Chroma(persist_directory=DB_FOLDER, embedding_function=embedding)
 print("🔄 Creating retrieval chain...")
 retriever = vector_store.as_retriever(
     search_type="similarity_score_threshold",
-    search_kwargs={"k": 20, "score_threshold": 0.3}
+    search_kwargs={"k": 5, "score_threshold": 0.3}
 )
 document_chain = create_stuff_documents_chain(cached_llm, raw_prompt)
 retrieval_chain = create_retrieval_chain(retriever, document_chain)
