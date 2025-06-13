@@ -38,8 +38,8 @@ wait_for_ollama_ready()
 
 # LLM & Embeddings
 #cached_llm = Ollama(model="llama3:8b", base_url="http://ollama:11434")
-cached_llm = Ollama(model="mistral", base_url="http://ollama:11434")
-#embedding = OllamaEmbeddings(model="mxbai-embed-large" , base_url="http://ollama:11434")
+cached_llm = Ollama(model="llama3", base_url="http://ollama:11434")
+
 embedding = FastEmbedEmbeddings()
 
 # Text splitter
