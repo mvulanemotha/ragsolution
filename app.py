@@ -8,11 +8,13 @@ from langchain_community.document_loaders import PDFPlumberLoader
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 from langchain.prompts import PromptTemplate
+from flask_cors import CORS
 import os
 import time
 import requests
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # === Global Setup ===
 PDF_FOLDER = "pdf"
@@ -37,8 +39,8 @@ def wait_for_ollama_ready(url="http://ollama:11434", timeout=5):
 wait_for_ollama_ready()
 
 # LLM & Embeddings
-cached_llm = Ollama(model="llama3:8b", base_url="http://ollama:11434")
-#cached_llm = Ollama(model="llama3", base_url="http://ollama:11434")
+#cached_llm = Ollama(model="llama3:8b", base_url="http://ollama:11434")
+cached_llm = Ollama(model="llama3", base_url="http://ollama:11434")
 
 embedding = FastEmbedEmbeddings()
 
@@ -67,8 +69,8 @@ vector_store = Chroma(persist_directory=DB_FOLDER, embedding_function=embedding)
 
 print("🔄 Creating retrieval chain...")
 retriever = vector_store.as_retriever(
-    search_type="similarity_score_threshold",
-    search_kwargs={"k": 5, "score_threshold": 0.3}
+    search_type="similarity",
+    search_kwargs={"k": 3,}
 )
 document_chain = create_stuff_documents_chain(cached_llm, raw_prompt)
 retrieval_chain = create_retrieval_chain(retriever, document_chain)
