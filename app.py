@@ -48,7 +48,7 @@ embedding = FastEmbedEmbeddings()
 # Text splitter
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1024,
-    chunk_overlap=64,
+    chunk_overlap=80,
     length_function=len,
     is_separator_regex=False
 )
