@@ -14,7 +14,7 @@ import time
 import requests
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app , resources={r"/*": { "origins":"*" }}, supports_credentials=True)  # Enable CORS for all routes
 
 # === Global Setup ===
 PDF_FOLDER = "pdf"
