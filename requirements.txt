@@ -1,28 +1,8 @@
-# Core web framework
-Flask==3.0.3
-flask-cors==4.0.0
-
-# LangChain components
-langchain-community==0.0.34
-langchain-core==0.1.46
-langchain-text-splitters==0.0.1
-
-# Vector database
-chromadb==0.4.24
-
-# PDF processing
-pdfplumber==0.11.0
-
-# Embeddings
-fastembed==0.2.6
-
-# HTTP requests
-requests==2.32.3
-
-# Production server
-gunicorn==22.0.0
-gevent==24.2.1
-
-# System utilities
-python-dotenv==1.0.1
-langchain==0.1.16
+flask
+flask-cors
+langchain
+langchain-community
+langchain-text-splitters
+pdfplumber
+chromadb
+fastembed
