@@ -39,8 +39,8 @@ def wait_for_ollama_ready(url="http://ollama:11434", timeout=5):
 wait_for_ollama_ready()
 
 # LLM & Embeddings
-cached_llm = Ollama(model="llama3:8b-instruct-q4_0", base_url="http://ollama:11434")
-#cached_llm = Ollama(model="llama3:8b", base_url="http://ollama:11434")
+#cached_llm = Ollama(model="llama3:8b-instruct-q4_0", base_url="http://ollama:11434")
+cached_llm = Ollama(model="llama3:8b", base_url="http://ollama:11434")
 #cached_llm = Ollama(model="llama3", base_url="http://ollama:11434")
 
 embedding = FastEmbedEmbeddings()
