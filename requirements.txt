@@ -25,3 +25,4 @@ gevent==24.2.1
 
 # System utilities
 python-dotenv==1.0.1
+langchain==0.1.16
