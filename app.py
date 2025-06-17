@@ -47,7 +47,7 @@ embedding = FastEmbedEmbeddings()
 # Text splitter
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1024,
-    chunk_overlap=80,
+    chunk_overlap=64,
     length_function=len,
     is_separator_regex=False
 )
@@ -112,7 +112,7 @@ def upload_pdf():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/ai", methods=["POST"])
+@app.route("/AI/ai", methods=["POST"])
 def ai_query():
     try:
         query = request.json.get("query", "")
