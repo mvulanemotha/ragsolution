@@ -78,7 +78,7 @@ retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
 # === Routes ===
 
-@app.route("/pdf", methods=["POST"])
+@app.route("/AI/pdf", methods=["POST"])
 def upload_pdf():
     try:
         file = request.files["file"]
