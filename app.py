@@ -124,7 +124,7 @@ def ai_query():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/ask_pdf", methods=["POST"])
+@app.route("/AI/ask_pdf", methods=["POST"])
 def ask_pdf():
     try:
         query = request.json.get("query", "")
