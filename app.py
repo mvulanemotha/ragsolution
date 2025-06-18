@@ -58,10 +58,17 @@ text_splitter = RecursiveCharacterTextSplitter(
 # Prompt template
 raw_prompt = PromptTemplate.from_template(
     """
-    <s>[INST] You are a technical assistant good at searching documents. If you do not have an answer from the provided information, say so. [/INST]</s>
-    [INST] {input} 
-           Context: {context}
-           Answer: 
+    <s>[INST] 
+    You are a technical assistant skilled in physics and mathematics. 
+    Use the provided context to answer the user's query. 
+    If the answer is not in the context, say so. 
+    For definitions, be clear and concise. 
+    For problems, show step-by-step reasoning and final answers.
+    [/INST]</s>
+    [INST] 
+    Question: {input}
+    Context: {context}
+    Answer: 
     [/INST]
     """
 )
