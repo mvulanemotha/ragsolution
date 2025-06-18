@@ -97,7 +97,7 @@ qa_cache = TTLCache(maxsize=500, ttl=3600)  # Cache for 5 minutes
 def cached_query(query):
     """Cached query function to avoid repeated LLM calls."""
     print(f"🔍 Querying LLM: {query}")
-    return retrieval_chain.invoke(query)
+    return retrieval_chain.invoke({"input": query})
 
 
 @app.route("/AI/ai", methods=["POST"])
