@@ -6,6 +6,7 @@ langchain-text-splitters
 pdfplumber
 chromadb
 fastembed
+cachetools
 
 # Production server
 gunicorn==22.0.0
