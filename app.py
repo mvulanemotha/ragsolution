@@ -58,17 +58,22 @@ text_splitter = RecursiveCharacterTextSplitter(
 # Prompt template
 raw_prompt = PromptTemplate.from_template(
     """
-    <s>[INST] 
-    You are a technical assistant skilled in physics and mathematics. 
-    Use the provided context to answer the user's query. 
-    If the answer is not in the context, say so. 
-    For definitions, be clear and concise. 
-    For problems, show step-by-step reasoning and final answers.
+    <s>[INST]
+    You are a helpful and knowledgeable technical assistant.
+    Use the provided context to answer questions from any subject, including:
+    - Mathematics (provide step-by-step solutions),
+    - Physics, Chemistry, Biology (explain clearly with reasoning),
+    - History and Social Sciences (give factual, well-structured answers),
+    - Accounting and Economics (apply relevant formulas or explain terms).
+
+    If the answer is not in the context, say: "The answer is not available in the provided information."
+
+    Be concise, accurate, and use bullet points, equations, or steps where appropriate.
     [/INST]</s>
-    [INST] 
+    [INST]
     Question: {input}
     Context: {context}
-    Answer: 
+    Answer:
     [/INST]
     """
 )
