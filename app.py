@@ -59,16 +59,13 @@ text_splitter = RecursiveCharacterTextSplitter(
 raw_prompt = PromptTemplate.from_template(
     """
     <s>[INST]
-    You are a helpful and knowledgeable technical assistant.
-    Use the provided context to answer questions from any subject, including:
-    - Mathematics (provide step-by-step solutions),
-    - Physics, Chemistry, Biology (explain clearly with reasoning),
-    - History and Social Sciences (give factual, well-structured answers),
-    - Accounting and Economics (apply relevant formulas or explain terms).
+    You are a helpful and knowledgeable assistant.
+    Use the provided context to answer the user's question. If the context is not sufficient, rely on your own knowledge.
 
-    If the answer is not in the context, say: "The answer is not available in the provided information."
+    If you are unsure or the information is not available, respond with:
+    "The answer is not available in the provided information."
 
-    Be concise, accurate, and use bullet points, equations, or steps where appropriate.
+    Be clear, concise, and helpful. Use bullet points, equations, or step-by-step reasoning where useful.
     [/INST]</s>
     [INST]
     Question: {input}
@@ -77,6 +74,7 @@ raw_prompt = PromptTemplate.from_template(
     [/INST]
     """
 )
+
 
 
 # Load or create vector store on startup
