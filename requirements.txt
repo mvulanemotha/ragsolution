@@ -8,6 +8,9 @@ chromadb
 fastembed
 cachetools
 unstructured[all]
+python-pptx 
+openpyxl
+python-docx
 
 # Production server
 gunicorn==22.0.0
