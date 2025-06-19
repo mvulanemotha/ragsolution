@@ -76,8 +76,6 @@ raw_prompt = PromptTemplate.from_template(
     """
 )
 
-
-
 # Load or create vector store on startup
 print("🔄 Loading vector store from disk...")
 vector_store = Chroma(persist_directory=DB_FOLDER, embedding_function=embedding)
@@ -154,7 +152,7 @@ def ai_query():
         print(f"❌ AI query error: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route("/AI/docs", methods=["POST"])
+@app.route("/AI/upload_docs", methods=["POST"])
 def upload_pdf():
     try:
         file = request.files["file"]
@@ -209,7 +207,7 @@ def upload_pdf():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/AI/docs", methods=["POST"])
+@app.route("/AI/ask_docs", methods=["POST"])
 def ask_pdf():
     try:
         query = request.json.get("query", "")
