@@ -142,6 +142,7 @@ def ai_query():
         print(f"🤖 AI query: {query} (cached={from_cache})")
         result = cached_query(query)  # Same cached function as /AI/ask_pdf
         answer = result.get("answer") if isinstance(result, dict) else result
+        answer = answer.replace("[INST]", "").replace("[/INST]", "").strip()
 
         return jsonify({
             "answer": answer,
@@ -220,8 +221,9 @@ def ask_pdf():
         print(f"Answer: {result.get('answer')}")
         print(f"Context documents: {len(result.get('context', []))}")
 
-        answer_text = result.get("answer", "No answer found.")
-        return jsonify({"answer": answer_text})
+        answer_text = result.get("answer") if isinstance(result, dict) else result
+
+        return jsonify({"answer": answer_text.replace("[INST]", "").replace("[/INST]", "").strip()})
     
     except Exception as e:
         print(f"❌ docs error: {e}")
