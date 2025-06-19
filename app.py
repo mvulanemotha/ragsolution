@@ -4,7 +4,8 @@ from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 #from langchain_community.embeddings.ollama import OllamaEmbeddings
-from langchain_community.document_loaders import PDFPlumberLoader
+from langchain_community.document_loaders import ( PDFPlumberLoader , UnstructuredPowerPointLoader , UnstructuredWordDocumentLoader ,
+    UnstructuredExcelLoader , UnstructuredFileLoader , UnstructuredCSVLoader)
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 from langchain.prompts import PromptTemplate
@@ -103,6 +104,30 @@ def file_hash(filepath):
 # caching LLM responses
 qa_cache = TTLCache(maxsize=500, ttl=3600)  # Cache for 5 minutes
 
+#function to determine file extension
+def get_file_extension_loaders(filename , filepath):
+    """Get the file extension from the filename."""
+    ext = os.path.splitext(filename)[1].lower()
+    if ext == ".pdf":
+        loader = PDFPlumberLoader(filepath)
+    elif ext ==".pptx":
+        loader = UnstructuredPowerPointLoader(filepath)
+    elif ext == ".docx":
+        loader = UnstructuredWordDocumentLoader(filepath)
+    elif ext == ".xlsx":
+        loader = UnstructuredExcelLoader(filepath)
+    elif ext == ".csv":
+        loader = UnstructuredCSVLoader(filepath)
+    elif ext in [".txt", ".md"]:
+        loader = UnstructuredFileLoader(filepath)
+    else:
+        raise ValueError(f"Unsupported file type: {ext}")
+    
+    docs = loader.load_and_split()
+    
+    return docs
+
+
 @cached(cache=qa_cache)
 def cached_query(query):
     """Cached query function to avoid repeated LLM calls."""
@@ -129,7 +154,7 @@ def ai_query():
         print(f"❌ AI query error: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route("/AI/pdf", methods=["POST"])
+@app.route("/AI/docs", methods=["POST"])
 def upload_pdf():
     try:
         file = request.files["file"]
@@ -151,10 +176,15 @@ def upload_pdf():
             })
 
 
-        loader = PDFPlumberLoader(filepath)
-        docs = loader.load_and_split()
+        #loader = PDFPlumberLoader(filepath)
+        #docs = loader.load_and_split()
+        try:
+            docs = get_file_extension_loaders(filename, filepath)
+        except ValueError as e:
+           return jsonify({"error": str(e)}), 400
+        
         print(f"📄 Document pages: {len(docs)}")
-
+    
         chunks = text_splitter.split_documents(docs)
         print(f"📚 Text chunks: {len(chunks)}")
 
@@ -175,15 +205,15 @@ def upload_pdf():
         })
 
     except Exception as e:
-        print(f"❌ Error uploading PDF: {e}")
+        print(f"❌ Error uploading docs: {e}")
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/AI/ask_pdf", methods=["POST"])
+@app.route("/AI/docs", methods=["POST"])
 def ask_pdf():
     try:
         query = request.json.get("query", "")
-        print(f"📥 PDF query: {query}")
+        print(f"📥 docs query: {query}")
         start = time.time()
         result = cached_query(query)  # ✅ Caching applied here
         elapsed = time.time() - start
@@ -196,7 +226,7 @@ def ask_pdf():
         return jsonify({"answer": answer_text})
     
     except Exception as e:
-        print(f"❌ ask_pdf error: {e}")
+        print(f"❌ docs error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
