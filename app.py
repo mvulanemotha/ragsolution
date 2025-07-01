@@ -25,6 +25,35 @@ DB_FOLDER = "db"
 os.makedirs(PDF_FOLDER, exist_ok=True)
 os.makedirs(DB_FOLDER, exist_ok=True)
 
+# get dynamic retriver
+def get_dynamic_retriever(query:str , base_k=3 , max_k=10):
+    """
+    Returns a retriver with a dynamic k based on query lenght
+    longer queries get more context
+    """
+    query_length = len(query.split())
+
+    # define ranges ( tune as neeeded)
+    if query_length <= 5:
+        k = base_k
+    elif query_length <= 10:
+        k = base_k + 1
+    elif query_length <= 20:
+        k = base_k + 2
+    else:
+        k = max_k
+
+    print(f"🔍 Dynamic retriever: k={k} for query length {query_length}")
+
+    return vector_store.as_retriever(
+        search_type="mmr",
+        search_kwargs={
+            "k": k,
+            "fetch_k": max(k*2, 10),  # Fetch more candidates to ensure quality
+        }
+    )
+
+
 # Checking if Ollama is connecting
 def wait_for_ollama_ready(url="http://ollama:11434", timeout=5):
     for i in range(timeout):
@@ -82,9 +111,11 @@ vector_store = Chroma(persist_directory=DB_FOLDER, embedding_function=embedding)
 
 print("🔄 Creating retrieval chain...")
 retriever = vector_store.as_retriever(
-    search_type="similarity",
-    search_kwargs={"k": 3,}
+    search_type="mmr",
+    search_kwargs={"k": 3,
+                   "fetch_k": 10}  # Fetch more candidates to ensure quality
 )
+
 document_chain = create_stuff_documents_chain(cached_llm, raw_prompt)
 retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
@@ -108,7 +139,7 @@ def get_file_extension_loaders(filename , filepath):
     ext = os.path.splitext(filename)[1].lower()
     if ext == ".pdf":
         loader = PDFPlumberLoader(filepath)
-    elif ext ==".pptx":
+    elif ext == ".pptx":
         loader = UnstructuredPowerPointLoader(filepath)
     elif ext == ".docx":
         loader = UnstructuredWordDocumentLoader(filepath)
