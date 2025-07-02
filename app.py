@@ -86,16 +86,18 @@ text_splitter = RecursiveCharacterTextSplitter(
 )
 
 # Prompt template
+
 raw_prompt = PromptTemplate.from_template(
     """
     <s>[INST]
     You are a helpful and knowledgeable assistant.
-    Use the provided context to answer the user's question. If the context is not sufficient, rely on your own knowledge.
+    
+    Use the provided context below to answer the user's question. If the context is not sufficient or is missing some information, rely on your own general knowledge and reasoning ability to respond accurately and helpfully.
 
-    If you are unsure or the information is not available, respond with:
+    If you're completely unsure or the information is not available, respond with:
     "The answer is not available in the provided information."
 
-    Be clear, concise, and helpful. Use bullet points, equations, or step-by-step reasoning where useful.
+    Format your answer clearly and concisely. Use bullet points, equations, or step-by-step reasoning if appropriate.
     [/INST]</s>
     [INST]
     Question: {input}
@@ -104,6 +106,7 @@ raw_prompt = PromptTemplate.from_template(
     [/INST]
     """
 )
+
 
 # Load or create vector store on startup
 print("🔄 Loading vector store from disk...")
