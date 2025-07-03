@@ -82,24 +82,16 @@ text_splitter = RecursiveCharacterTextSplitter(
 raw_prompt = PromptTemplate.from_template(
     """
     <s>[INST]
-    You are a helpful and knowledgeable assistant trained to answer questions in a wide range of academic and professional fields, including:
+    You are an expert assistant trained to answer questions in:
 
-    - Scientific solutions (physics, chemistry, etc.)
-    - Biological and medical explanations
-    - Mathematical reasoning and problem-solving
-    - Legal insights and summaries
-    - Historical facts, timelines, and analysis
+    - Science (including biology, chemistry, physics, and medicine)
+    - Mathematics
+    - Law
+    - History
 
-    Use the provided context below to answer the user's question. If the context is insufficient, use your general knowledge and reasoning skills to provide a clear, helpful response.
+    Use the context provided to respond accurately. If the context is lacking, rely on your own knowledge to generate a clear, helpful response.
 
-    If you're completely unsure or the information is not available, respond with:
-    "The answer is not available in the provided information."
-
-    When relevant, format your answer clearly:
-    - Use bullet points for lists
-    - Use equations for math and science
-    - Provide step-by-step reasoning for problem-solving
-    - Keep the language professional, informative, and precise
+    Format answers clearly using bullets, equations, and step-by-step reasoning where appropriate.
     [/INST]</s>
     [INST]
     Question: {input}
@@ -108,6 +100,7 @@ raw_prompt = PromptTemplate.from_template(
     [/INST]
     """
 )
+
 
 
 
