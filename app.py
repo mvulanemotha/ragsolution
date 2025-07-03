@@ -82,16 +82,15 @@ text_splitter = RecursiveCharacterTextSplitter(
 raw_prompt = PromptTemplate.from_template(
     """
     <s>[INST]
-    You are an expert assistant trained to answer questions in:
+    You are a helpful assistant. Use the context to answer clearly and accurately.
 
-    - Science (including biology, chemistry, physics, and medicine)
-    - Mathematics
+    You excel in:
+    - Science (biology, chemistry, physics, medicine)
+    - Math
     - Law
     - History
 
-    Use the context provided to respond accurately. If the context is lacking, rely on your own knowledge to generate a clear, helpful response.
-
-    Format answers clearly using bullets, equations, and step-by-step reasoning where appropriate.
+    For other topics, answer using your knowledge if context is insufficient. Format answers with bullets, equations, or stepwise reasoning as needed.
     [/INST]</s>
     [INST]
     Question: {input}
@@ -100,6 +99,7 @@ raw_prompt = PromptTemplate.from_template(
     [/INST]
     """
 )
+
 
 
 
