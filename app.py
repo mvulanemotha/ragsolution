@@ -64,7 +64,7 @@ def get_dynamic_retriever(query:str , base_k=3 , max_k=10):
 #cached_llm = Ollama(model="llama3", base_url="http://ollama:11434")
 cached_llm = ChatOpenAI(
     #model="llama3-8b-8192",  # or another GROQ-supported model like mixtral-8x7b-32768
-    model="mixtral-8x7b-32768",
+    model="llama-3.1-8b-instant",
     base_url="https://api.groq.com/openai/v1",
     api_key=os.getenv("GROQ_API_KEY")
 )
