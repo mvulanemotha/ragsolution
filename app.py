@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from langchain_community.llms import Ollama
+from langchain.chat_models import ChatOpenAI 
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
@@ -15,6 +15,10 @@ import os
 import time
 import requests
 import hashlib
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
+
 
 app = Flask(__name__)
 CORS(app , resources={r"/*": { "origins":"*" }}, supports_credentials=True)  # Enable CORS for all routes
@@ -54,26 +58,15 @@ def get_dynamic_retriever(query:str , base_k=3 , max_k=10):
     )
 
 
-# Checking if Ollama is connecting
-def wait_for_ollama_ready(url="http://ollama:11434", timeout=5):
-    for i in range(timeout):
-        try:
-            res = requests.get(url + "/")
-            if res.status_code == 200:
-                print("✅ Ollama is ready!")
-                return True
-        except:
-            pass
-        print(f"⏳ Waiting for Ollama... ({i+1}/{timeout})")
-        time.sleep(1)
-    raise RuntimeError("Ollama not available after timeout.")
-
-wait_for_ollama_ready()
-
 # LLM & Embeddings
 #cached_llm = Ollama(model="llama3:8b-instruct-q4_0", base_url="http://ollama:11434")
-cached_llm = Ollama(model="llama3:8b", base_url="http://ollama:11434")
+#cached_llm = Ollama(model="llama3:8b", base_url="http://ollama:11434")
 #cached_llm = Ollama(model="llama3", base_url="http://ollama:11434")
+cached_llm = ChatOpenAI(
+    model="llama3-8b-8192",  # or another GROQ-supported model like mixtral-8x7b-32768
+    base_url="https://api.groq.com/openai/v1",
+    api_key=os.getenv("GROQ_API_KEY")
+)
 
 embedding = FastEmbedEmbeddings()
 
@@ -86,18 +79,27 @@ text_splitter = RecursiveCharacterTextSplitter(
 )
 
 # Prompt template
-
 raw_prompt = PromptTemplate.from_template(
     """
     <s>[INST]
-    You are a helpful and knowledgeable assistant.
-    
-    Use the provided context below to answer the user's question. If the context is not sufficient or is missing some information, rely on your own general knowledge and reasoning ability to respond accurately and helpfully.
+    You are a helpful and knowledgeable assistant trained to answer questions in a wide range of academic and professional fields, including:
+
+    - Scientific solutions (physics, chemistry, etc.)
+    - Biological and medical explanations
+    - Mathematical reasoning and problem-solving
+    - Legal insights and summaries
+    - Historical facts, timelines, and analysis
+
+    Use the provided context below to answer the user's question. If the context is insufficient, use your general knowledge and reasoning skills to provide a clear, helpful response.
 
     If you're completely unsure or the information is not available, respond with:
     "The answer is not available in the provided information."
 
-    Format your answer clearly and concisely. Use bullet points, equations, or step-by-step reasoning if appropriate.
+    When relevant, format your answer clearly:
+    - Use bullet points for lists
+    - Use equations for math and science
+    - Provide step-by-step reasoning for problem-solving
+    - Keep the language professional, informative, and precise
     [/INST]</s>
     [INST]
     Question: {input}
@@ -106,6 +108,7 @@ raw_prompt = PromptTemplate.from_template(
     [/INST]
     """
 )
+
 
 
 # Load or create vector store on startup
