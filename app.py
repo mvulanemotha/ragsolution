@@ -65,7 +65,9 @@ def get_dynamic_retriever(query:str , base_k=3 , max_k=10):
 cached_llm = ChatOpenAI(
     #model="llama3-8b-8192",  # or another GROQ-supported model like mixtral-8x7b-32768
     model="llama-3.1-8b-instant",
+    #model="mixtral-8x7b-32768",
     base_url="https://api.groq.com/openai/v1",
+    temperature=0.3,
     api_key=os.getenv("GROQ_API_KEY")
 )
 
@@ -80,28 +82,31 @@ text_splitter = RecursiveCharacterTextSplitter(
 )
 
 # Prompt template
-raw_prompt = PromptTemplate.from_template(
-    """
-    <s>[INST]
-    You are a helpful assistant. Use the context to answer clearly and accurately.
 
-    You excel in:
-    - Science (biology, chemistry, physics, medicine)
-    - Math
-    - Law
-    - History
+raw_prompt = PromptTemplate.from_template("""
+<s>[INST]
+You are an AI assistant for company-wide information. Answer **using only the provided context**.
 
-    For other topics, answer using your knowledge if context is insufficient. Format answers with bullets, equations, or stepwise reasoning as needed.
-    [/INST]</s>
-    [INST]
-    Question: {input}
-    Context: {context}
-    Answer:
-    [/INST]
-    """
-)
+**Guidelines:**
+- If the context doesn't contain the answer, say: "This information is not covered in available company documentation"
+- Structure responses clearly with bullets, numbered steps, or sections as appropriate
+- Reference specific documents, policies, or sections when available
+- Maintain professional tone suitable for all departments
+- Do not speculate or use external knowledge
 
+**Special Notes:**
+- For legal/financial/HR matters: Emphasize when professional consultation is recommended
+- For technical/procedural content: Provide step-by-step guidance when context allows
+- For policy questions: Note effective dates and any conditional requirements
+[/INST]</s>
+[INST]
+**Department:** Various  
+**Question:** {input}  
+**Available Documentation:** {context}
 
+**Company Response:**
+[/INST]
+""")
 
 
 
