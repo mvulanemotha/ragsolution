@@ -1,8 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from langchain.chat_models import ChatOpenAI
-from langchain_community.vectorstores import Chroma
+from langchain_openai import ChatOpenAI
+from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_community.document_loaders import (
@@ -14,7 +14,7 @@ from langchain.chains import create_retrieval_chain
 from langchain.prompts import PromptTemplate
 from cachetools import TTLCache, cached
 from sqlalchemy.orm import Session
-from database import get_db, SessionLocal
+from database import get_db
 from models import User, UserQuery
 from pydantic import BaseModel
 import os
@@ -23,13 +23,12 @@ import hashlib
 from dotenv import load_dotenv
 import bcrypt
 
-# Load environment variables
+# --- Load environment variables ---
 load_dotenv()
 
-# Initialize FastAPI
+# --- FastAPI setup ---
 app = FastAPI(title="AI Company Assistant API")
 
-# CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -38,23 +37,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Password helpers ---
 def hash_password(password: str) -> str:
-    """Hash a password for storing in the database."""
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
     return hashed.decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against the hashed version."""
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
-# === Folders setup ===
+# --- Folders setup ---
 PDF_FOLDER = "pdf"
 DB_FOLDER = "db"
 os.makedirs(PDF_FOLDER, exist_ok=True)
 os.makedirs(DB_FOLDER, exist_ok=True)
 
-# === LLM Setup ===
+# --- LLM setup ---
 cached_llm = ChatOpenAI(
     model="llama-3.1-8b-instant",
     base_url="https://api.groq.com/openai/v1",
@@ -63,7 +61,6 @@ cached_llm = ChatOpenAI(
 )
 
 embedding = FastEmbedEmbeddings()
-
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1024,
     chunk_overlap=80,
@@ -71,7 +68,7 @@ text_splitter = RecursiveCharacterTextSplitter(
     is_separator_regex=False,
 )
 
-# Prompt
+# --- Prompt template ---
 raw_prompt = PromptTemplate.from_template("""
 <s>[INST]
 You are an AI assistant for company-wide information. Answer **using only the provided context**.
@@ -91,14 +88,14 @@ Company Response:
 [/INST]
 """)
 
-# === Vector Store ===
+# --- Vector store setup ---
 print("🔄 Loading vector store...")
 vector_store = Chroma(persist_directory=DB_FOLDER, embedding_function=embedding)
 retriever = vector_store.as_retriever(search_type="mmr", search_kwargs={"k": 3, "fetch_k": 10})
 document_chain = create_stuff_documents_chain(cached_llm, raw_prompt)
 retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
-# === Helpers ===
+# --- Helpers ---
 qa_cache = TTLCache(maxsize=500, ttl=3600)
 
 def file_hash(filepath):
@@ -131,7 +128,7 @@ def cached_query(query: str):
     print(f"🔍 Querying LLM: {query}")
     return retrieval_chain.invoke({"input": query})
 
-# === Models ===
+# --- Request Models ---
 class QueryRequest(BaseModel):
     query: str
 
@@ -146,7 +143,7 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
-# === Routes ===
+# --- Routes ---
 
 @app.post("/AI/ai")
 def ai_query(payload: QueryRequest):
@@ -205,20 +202,18 @@ def ask_pdf(payload: QueryRequest):
 
 @app.post("/AI/register")
 def register_user(request: RegisterRequest, db: Session = Depends(get_db)):
-
     try:
-
-        existing_user = db.query(User).filter((User.username == request.username)).first()
+        existing_user = db.query(User).filter(User.username == request.username).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Username already taken")
 
-        username = request.username
-        email = request.email
-        contact = request.contact
-        password_hash = hash_password(request.password)
-        full_name = request.fullname 
-
-        user = User(username=username, email=email, contact=contact, password_hash=password_hash, full_name=full_name)
+        user = User(
+            username=request.username,
+            email=request.email,
+            contact=request.contact,
+            password_hash=hash_password(request.password),
+            full_name=request.fullname
+        )
 
         db.add(user)
         db.commit()
@@ -230,14 +225,8 @@ def register_user(request: RegisterRequest, db: Session = Depends(get_db)):
 @app.post("/AI/login")
 def login_user(request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == request.username).first()
-
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
     if verify_password(request.password, user.password_hash):
         return {"message": "Login successful", "username": user.username}
-    else:
-        return JSONResponse(status_code=401, content={"message": "Invalid credentials"})
-
-# === Start the app ===
-# Run with: uvicorn app:app --reload
+    return JSONResponse(status_code=401, content={"message": "Invalid credentials"})
