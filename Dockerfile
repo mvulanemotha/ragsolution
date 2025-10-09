@@ -17,4 +17,5 @@ COPY . .
 
 EXPOSE 8080
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+CMD ["bash", "-c", "alembic upgrade head && uvicorn app:app --host 0.0.0.0 --port 8080 --reload"]
+
