@@ -8,6 +8,9 @@ services:
     volumes:
       - ./pdf:/app/pdf
       - ./db:/app/db
+    env_file:
+      - .env
+      
     environment:
       - PYTHONUNBUFFERED=1
-
+      - DATABASE_URL=${DATABASE_URL}
