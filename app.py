@@ -1,146 +1,114 @@
-from flask import Flask, request, jsonify
-from langchain.chat_models import ChatOpenAI 
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from langchain.chat_models import ChatOpenAI
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
-#from langchain_community.embeddings.ollama import OllamaEmbeddings
-from langchain_community.document_loaders import ( PDFPlumberLoader , UnstructuredPowerPointLoader , UnstructuredWordDocumentLoader ,
-    UnstructuredExcelLoader , UnstructuredFileLoader , UnstructuredCSVLoader)
+from langchain_community.document_loaders import (
+    PDFPlumberLoader, UnstructuredPowerPointLoader, UnstructuredWordDocumentLoader,
+    UnstructuredExcelLoader, UnstructuredFileLoader, UnstructuredCSVLoader
+)
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 from langchain.prompts import PromptTemplate
-from flask_cors import CORS
 from cachetools import TTLCache, cached
+from sqlalchemy.orm import Session
+from database import get_db, SessionLocal
+from models import User, UserQuery
+from pydantic import BaseModel
 import os
 import time
-import requests
 import hashlib
 from dotenv import load_dotenv
+import bcrypt
 
-load_dotenv()  # Load environment variables from .env file
+# Load environment variables
+load_dotenv()
 
+# Initialize FastAPI
+app = FastAPI(title="AI Company Assistant API")
 
-app = Flask(__name__)
-CORS(app , resources={r"/*": { "origins":"*" }}, supports_credentials=True)  # Enable CORS for all routes
+# CORS setup
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# === Global Setup ===
+def hash_password(password: str) -> str:
+    """Hash a password for storing in the database."""
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a plain password against the hashed version."""
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+# === Folders setup ===
 PDF_FOLDER = "pdf"
 DB_FOLDER = "db"
 os.makedirs(PDF_FOLDER, exist_ok=True)
 os.makedirs(DB_FOLDER, exist_ok=True)
 
-# get dynamic retriver
-def get_dynamic_retriever(query:str , base_k=3 , max_k=10):
-    """
-    Returns a retriver with a dynamic k based on query lenght
-    longer queries get more context
-    """
-    query_length = len(query.split())
-
-    # define ranges ( tune as neeeded)
-    if query_length <= 5:
-        k = base_k
-    elif query_length <= 10:
-        k = base_k + 1
-    elif query_length <= 20:
-        k = base_k + 2
-    else:
-        k = max_k
-
-    print(f"🔍 Dynamic retriever: k={k} for query length {query_length}")
-
-    return vector_store.as_retriever(
-        search_type="mmr",
-        search_kwargs={
-            "k": k,
-            "fetch_k": max(k*2, 10),  # Fetch more candidates to ensure quality
-        }
-    )
-
-
-# LLM & Embeddings
-#cached_llm = Ollama(model="llama3:8b-instruct-q4_0", base_url="http://ollama:11434")
-#cached_llm = Ollama(model="llama3:8b", base_url="http://ollama:11434")
-#cached_llm = Ollama(model="llama3", base_url="http://ollama:11434")
+# === LLM Setup ===
 cached_llm = ChatOpenAI(
-    #model="llama3-8b-8192",  # or another GROQ-supported model like mixtral-8x7b-32768
     model="llama-3.1-8b-instant",
-    #model="mixtral-8x7b-32768",
     base_url="https://api.groq.com/openai/v1",
     temperature=0.3,
-    api_key=os.getenv("GROQ_API_KEY")
+    api_key=os.getenv("GROQ_API_KEY"),
 )
 
 embedding = FastEmbedEmbeddings()
 
-# Text splitter
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1024,
     chunk_overlap=80,
     length_function=len,
-    is_separator_regex=False
+    is_separator_regex=False,
 )
 
-# Prompt template
-
+# Prompt
 raw_prompt = PromptTemplate.from_template("""
 <s>[INST]
 You are an AI assistant for company-wide information. Answer **using only the provided context**.
 
-**Guidelines:**
-- If the context doesn't contain the answer, say: "This information is not covered in available company documentation"
-- Structure responses clearly with bullets, numbered steps, or sections as appropriate
-- Reference specific documents, policies, or sections when available
-- Maintain professional tone suitable for all departments
-- Do not speculate or use external knowledge
-
-**Special Notes:**
-- For legal/financial/HR matters: Emphasize when professional consultation is recommended
-- For technical/procedural content: Provide step-by-step guidance when context allows
-- For policy questions: Note effective dates and any conditional requirements
+Guidelines:
+- Answer in plain text only.
+- Structure clearly with numbers, paragraphs, or headings.
+- If context doesn't contain the answer, say: "This information is not covered in available company documentation".
 [/INST]</s>
-[INST]
-**Department:** Various  
-**Question:** {input}  
-**Available Documentation:** {context}
 
-**Company Response:**
+[INST]
+Department: Various
+Question: {input}
+Available Documentation: {context}
+
+Company Response:
 [/INST]
 """)
 
-
-
-# Load or create vector store on startup
-print("🔄 Loading vector store from disk...")
+# === Vector Store ===
+print("🔄 Loading vector store...")
 vector_store = Chroma(persist_directory=DB_FOLDER, embedding_function=embedding)
-
-print("🔄 Creating retrieval chain...")
-retriever = vector_store.as_retriever(
-    search_type="mmr",
-    search_kwargs={"k": 3,
-                   "fetch_k": 10}  # Fetch more candidates to ensure quality
-)
-
+retriever = vector_store.as_retriever(search_type="mmr", search_kwargs={"k": 3, "fetch_k": 10})
 document_chain = create_stuff_documents_chain(cached_llm, raw_prompt)
 retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
+# === Helpers ===
+qa_cache = TTLCache(maxsize=500, ttl=3600)
 
-# file hashing function
 def file_hash(filepath):
-    """Generate a hash for the file to check if it has changed."""
     hasher = hashlib.sha256()
     with open(filepath, "rb") as f:
         while chunk := f.read(8192):
             hasher.update(chunk)
     return hasher.hexdigest()
-# === Routes ===
 
-# caching LLM responses
-qa_cache = TTLCache(maxsize=500, ttl=3600)  # Cache for 5 minutes
-
-#function to determine file extension
-def get_file_extension_loaders(filename , filepath):
-    """Get the file extension from the filename."""
+def get_file_extension_loaders(filename, filepath):
     ext = os.path.splitext(filename)[1].lower()
     if ext == ".pdf":
         loader = PDFPlumberLoader(filepath)
@@ -156,119 +124,120 @@ def get_file_extension_loaders(filename , filepath):
         loader = UnstructuredFileLoader(filepath)
     else:
         raise ValueError(f"Unsupported file type: {ext}")
-    
-    docs = loader.load_and_split()
-    
-    return docs
-
+    return loader.load_and_split()
 
 @cached(cache=qa_cache)
-def cached_query(query):
-    """Cached query function to avoid repeated LLM calls."""
+def cached_query(query: str):
     print(f"🔍 Querying LLM: {query}")
     return retrieval_chain.invoke({"input": query})
 
+# === Models ===
+class QueryRequest(BaseModel):
+    query: str
 
-@app.route("/AI/ai", methods=["POST"])
-def ai_query():
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    email: str = None
+    contact: str = None
+    fullname: str
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+# === Routes ===
+
+@app.post("/AI/ai")
+def ai_query(payload: QueryRequest):
     try:
-        query = request.json.get("query", "")
+        query = payload.query
         from_cache = query in qa_cache
-
-        print(f"🤖 AI query: {query} (cached={from_cache})")
-        result = cached_query(query)  # Same cached function as /AI/ask_pdf
-        answer = result.get("answer") if isinstance(result, dict) else result
-        answer = answer.replace("[INST]", "").replace("[/INST]", "").strip()
-
-        return jsonify({
-            "answer": answer,
-            "cached": from_cache
-        })
-
+        result = cached_query(query)
+        answer = result.get("answer", "").replace("[INST]", "").replace("[/INST]", "").strip()
+        return {"answer": answer, "cached": from_cache}
     except Exception as e:
-        print(f"❌ AI query error: {e}")
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route("/AI/upload_docs", methods=["POST"])
-def upload_pdf():
+@app.post("/AI/upload_docs")
+async def upload_pdf(file: UploadFile = File(...)):
     try:
-        file = request.files["file"]
         filename = file.filename
         filepath = os.path.join(PDF_FOLDER, filename)
-        file.save(filepath)
+        with open(filepath, "wb") as f:
+            f.write(await file.read())
+
         print(f"📄 Uploaded file: {filename}")
-
         doc_hash = file_hash(filepath)
-        print(f"🔍 File hash: {doc_hash}")
-            
-        # Check if the file already exists and has not changed
+
         if os.path.exists(f"{DB_FOLDER}/{doc_hash}.cached"):
-            print("✅ Document already cached. Skipping embedding.")
-            return jsonify({
-                "status": "File already processed",
-                "filename": filename,
-                "doc_hash": doc_hash
-            })
+            return {"status": "File already processed", "filename": filename, "doc_hash": doc_hash}
 
-
-        #loader = PDFPlumberLoader(filepath)
-        #docs = loader.load_and_split()
-        try:
-            docs = get_file_extension_loaders(filename, filepath)
-        except ValueError as e:
-           return jsonify({"error": str(e)}), 400
-        
-        print(f"📄 Document pages: {len(docs)}")
-    
+        docs = get_file_extension_loaders(filename, filepath)
         chunks = text_splitter.split_documents(docs)
-        print(f"📚 Text chunks: {len(chunks)}")
 
-        # Append new documents to the existing vector store
         global vector_store
         vector_store.add_documents(chunks)
         vector_store.persist()
-        print(f"✅ Document embedded and stored (appended).")
-        
+
         with open(f"{DB_FOLDER}/{doc_hash}.cached", "w") as f:
             f.write("cached")
 
-        return jsonify({
-            "status": "Successfully uploaded",
-            "filename": filename,
-            "doc_len": len(docs),
-            "chunks_len": len(chunks)
-        })
+        return {"status": "Successfully uploaded", "filename": filename, "chunks": len(chunks)}
 
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        print(f"❌ Error uploading docs: {e}")
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.route("/AI/ask_docs", methods=["POST"])
-def ask_pdf():
+@app.post("/AI/ask_docs")
+def ask_pdf(payload: QueryRequest):
     try:
-        query = request.json.get("query", "")
-        print(f"📥 docs query: {query}")
+        query = payload.query
         start = time.time()
-        result = cached_query(query)  # ✅ Caching applied here
+        result = cached_query(query)
         elapsed = time.time() - start
-
-        print(f"✅ Done in {elapsed:.2f} seconds")
-        print(f"Answer: {result.get('answer')}")
-        print(f"Context documents: {len(result.get('context', []))}")
-
-        answer_text = result.get("answer") if isinstance(result, dict) else result
-
-        return jsonify({"answer": answer_text.replace("[INST]", "").replace("[/INST]", "").strip()})
-    
+        print(f"✅ Done in {elapsed:.2f}s")
+        answer = result.get("answer", "").replace("[INST]", "").replace("[/INST]", "").strip()
+        return {"answer": answer, "time": f"{elapsed:.2f}s"}
     except Exception as e:
-        print(f"❌ docs error: {e}")
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/AI/register")
+def register_user(request: RegisterRequest, db: Session = Depends(get_db)):
+
+    try:
+
+        existing_user = db.query(User).filter((User.username == request.username)).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already taken")
+
+        username = request.username
+        email = request.email
+        contact = request.contact
+        password_hash = hash_password(request.password)
+        full_name = request.fullname 
+
+        user = User(username=username, email=email, contact=contact, password_hash=password_hash, full_name=full_name)
+
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return {"message": "User registered", "username": user.username}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/AI/login")
+def login_user(request: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == request.username).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if verify_password(request.password, user.password_hash):
+        return {"message": "Login successful", "username": user.username}
+    else:
+        return JSONResponse(status_code=401, content={"message": "Invalid credentials"})
 
 # === Start the app ===
-def start_app():
-    app.run(host="0.0.0.0", port=8080, debug=True)
-
-if __name__ == "__main__":
-    start_app()
+# Run with: uvicorn app:app --reload
