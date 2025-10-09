@@ -174,8 +174,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         chunks = text_splitter.split_documents(docs)
 
         global vector_store
-        vector_store.add_documents(chunks)
-        vector_store.persist()
+        vector_store.add_documents(chunks)  # ✅ No persist() needed
 
         with open(f"{DB_FOLDER}/{doc_hash}.cached", "w") as f:
             f.write("cached")
