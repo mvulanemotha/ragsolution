@@ -1,8 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-
-# --- LangChain and AI stack ---
 from langchain_openai import ChatOpenAI
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -11,12 +9,9 @@ from langchain_community.document_loaders import (
     PDFPlumberLoader, UnstructuredPowerPointLoader, UnstructuredWordDocumentLoader,
     UnstructuredExcelLoader, UnstructuredFileLoader, UnstructuredCSVLoader
 )
-
-from langchain.chains import create_retrieval_chain, create_stuff_documents_chain
-from langchain_core.prompts import PromptTemplate
-
-
-# --- Utils and app dependencies ---
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+from langchain.prompts import PromptTemplate
 from cachetools import TTLCache, cached
 from sqlalchemy.orm import Session
 from database import get_db
@@ -27,7 +22,6 @@ import time
 import hashlib
 from dotenv import load_dotenv
 import bcrypt
-
 
 # --- Load environment variables ---
 load_dotenv()
