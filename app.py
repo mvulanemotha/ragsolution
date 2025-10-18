@@ -12,10 +12,9 @@ from langchain_community.document_loaders import (
     UnstructuredExcelLoader, UnstructuredFileLoader, UnstructuredCSVLoader
 )
 
-from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain, create_stuff_documents_chain
+from langchain_core.prompts import PromptTemplate
 
-from langchain.chains import create_retrieval_chain
-from langchain.prompts import PromptTemplate
 
 # --- Utils and app dependencies ---
 from cachetools import TTLCache, cached
